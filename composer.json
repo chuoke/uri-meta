@@ -1,0 +1,48 @@
+{
+    "name": "chuoke/uri-meta",
+    "description": "Get URI META",
+    "keywords": [
+        "uri meta"
+    ],
+    "homepage": "https://github.com/chuoke/uri-meta",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "chuoke",
+            "email": "chuokechungyoung@gmail.com",
+            "role": "Developer"
+        }
+    ],
+    "require": {
+        "php": "^8.0",
+        "chrome-php/chrome": "^0.11.0",
+        "imangazaliev/didom": "^1.16",
+        "league/uri": "^6.4"
+    },
+    "require-dev": {
+        "friendsofphp/php-cs-fixer": "^2.17",
+        "phpunit/phpunit": "^9.5",
+        "vimeo/psalm": "^4.3"
+    },
+    "autoload": {
+        "psr-4": {
+            "Chuoke\\UriMeta\\": "src"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Chuoke\\UriMeta\\Tests\\": "tests"
+        }
+    },
+    "scripts": {
+        "psalm": "vendor/bin/psalm",
+        "test": "vendor/bin/phpunit",
+        "test-coverage": "vendor/bin/phpunit --coverage-html coverage",
+        "format": "vendor/bin/php-cs-fixer fix --allow-risky=yes"
+    },
+    "config": {
+        "sort-packages": true
+    },
+    "minimum-stability": "dev",
+    "prefer-stable": true
+}
