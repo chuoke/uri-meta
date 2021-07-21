@@ -2,10 +2,10 @@
 
 namespace Chuoke\UriMeta;
 
-use Exception;
 use DiDom\Document;
-use League\Uri\Uri;
+use Exception;
 use HeadlessChromium\BrowserFactory;
+use League\Uri\Uri;
 
 class UriMetaExtracter
 {
@@ -47,7 +47,7 @@ class UriMetaExtracter
     {
         $this->uri = Uri::createFromString($uri);
 
-        if (!$this->isHttp() || $this->isShouldSkip()) {
+        if (! $this->isHttp() || $this->isShouldSkip()) {
             return $this->useDefault();
         }
 
@@ -110,7 +110,7 @@ class UriMetaExtracter
             ':',
             array_filter([
                 $this->uri->getHost(),
-                $this->uri->getPort()
+                $this->uri->getPort(),
             ])
         );
     }
@@ -119,19 +119,19 @@ class UriMetaExtracter
      * 提取meta标签值
      *
      * @param  array  $possibles
-     * @param  boolean  $takeAll
+     * @param  bool  $takeAll
      * @return array
      */
     protected function extractMetaValue(array $possibles, $takeAll = false)
     {
-        if (!($headEle = $this->document->first('head'))) {
+        if (! ($headEle = $this->document->first('head'))) {
             return [];
         }
 
         $values = [];
 
         foreach ($possibles as $possible => $attr) {
-            if (!($possibleEle = $headEle->first($possible))) {
+            if (! ($possibleEle = $headEle->first($possible))) {
                 continue;
             }
 
@@ -145,7 +145,7 @@ class UriMetaExtracter
                 $values[] = $value;
             }
 
-            if (!empty($values) && !$takeAll) {
+            if (! empty($values) && ! $takeAll) {
                 break;
             }
         }
@@ -214,7 +214,7 @@ class UriMetaExtracter
 
     protected function isHostUri(): bool
     {
-        return !$this->uri->getPath();
+        return ! $this->uri->getPath();
     }
 
     public function hostUri(): string
