@@ -26,8 +26,5 @@ class BaseTest extends TestCase
         $uriMeta = $extracter->extract('https://github.com/php/php-src');
 
         $this->assertEquals('GitHub - php/php-src: The PHP Interpreter', $uriMeta->title());
-
-        $uriMeta = $extracter->extract('https://bos.bankcement.com/');
-        print_r($uriMeta->toArray());
     }
 }
