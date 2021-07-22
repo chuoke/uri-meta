@@ -256,7 +256,7 @@ class UriMetaExtracter
 
             return $page->getHtml();
         } finally {
-            $browser && $browser->close();
+            isset($browser) && $browser && $browser->close();
         }
     }
 
