@@ -9,21 +9,25 @@ class UriMeta
     /** @var \League\Uri\Uri */
     protected $uri;
 
-    public array $titles = [];
+    protected $meta;
 
-    public array $descriptions = [];
-
-    public string $keywords = '';
-
-    public array $icons = [];
-
-    public function __construct($uri)
+    public function __construct($uri, array $meta = [])
     {
-        if (! $uri instanceof Uri) {
+        if (!$uri instanceof Uri) {
             $uri = Uri::createFromString($uri);
         }
 
         $this->uri = $uri;
+        $this->meta = $meta;
+    }
+
+    public function getMeta($key = null)
+    {
+        if (is_null($key)) {
+            return $this->meta;
+        }
+
+        return $this->meta[$key] ?? null;
     }
 
     public function uri(): string
@@ -43,7 +47,7 @@ class UriMeta
 
     public function title(): string
     {
-        return reset($this->titles) ?: $this->defaultTitle();
+        return $this->getMeta(__FUNCTION__) ?: $this->defaultTitle();
     }
 
     public function defaultTitle(): string
@@ -51,46 +55,38 @@ class UriMeta
         return (string) $this->host();
     }
 
-    public function titles(): array
-    {
-        return $this->titles;
-    }
-
     public function description(): string
     {
-        return (string) reset($this->descriptions);
+        return (string) $this->getMeta(__FUNCTION__) ?: '';
     }
 
-    public function descriptions(): array
+    public function keywords(): array
     {
-        return $this->descriptions;
-    }
-
-    public function keywords(): string
-    {
-        return $this->keywords;
-    }
-
-    public function icon(): string
-    {
-        return (string) reset($this->icons);
+        return $this->getMeta(__FUNCTION__) ?: [];
     }
 
     public function icons(): array
     {
-        return $this->icons;
+        return $this->getMeta(__FUNCTION__) ?: [];
+    }
+
+    public function og(): array
+    {
+        return $this->getMeta(__FUNCTION__) ?: [];
+    }
+
+    public function twitter(): array
+    {
+        return $this->getMeta(__FUNCTION__) ?: [];
     }
 
     public function toArray(): array
     {
-        return [
+        return array_merge($this->meta, [
             'uri' => $this->uri(),
             'host' => $this->host(),
             'scheme' => $this->scheme(),
             'title' => $this->title(),
-            'description' => $this->description(),
-            'keywords' => $this->keywords(),
-            'icons' => $this->icons(),
-        ];
+        ]);
     }
 }

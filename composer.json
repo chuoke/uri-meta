@@ -15,13 +15,16 @@
     ],
     "require": {
         "php": "^8.0",
-        "chrome-php/chrome": "^0.11.0",
+        "guzzlehttp/guzzle": "^7.3",
+        "illuminate/http": "^8.61",
         "imangazaliev/didom": "^1.16",
         "league/uri": "^6.4"
     },
     "require-dev": {
+        "chrome-php/chrome": "^0.11.0",
         "friendsofphp/php-cs-fixer": "^2.17",
         "phpunit/phpunit": "^9.5",
+        "spatie/browsershot": "^3.49",
         "vimeo/psalm": "^4.3"
     },
     "autoload": {

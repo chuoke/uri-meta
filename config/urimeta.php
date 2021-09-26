@@ -1,37 +1,43 @@
 <?php
 
 return [
+    'drivers' => [
+        // https://github.com/chrome-php/chrome
+        'chromephp' => [
+            // connect broser use executable_path or url
+            'wsendpoint' => null,
+            // 'browser_bin' => '/usr/bin/chromium-browser',
+            'browser_bin' => null,
+            'debugging_port' => 9222,
+            'browser_options' => [
+                'keepAlive' => true,
+                'envVariables' => [
+                    '--no-sandbox',
+                    '--enable-logging',
+                    '--v1=1',
+                    '--disable-gpu',
+                    '--disable-software-rasterizer',
+                    '--disable-dev-shm-usage',
+                    '--no-first-run',
+                    '--remote-debugging-address=0.0.0.0',
+                    '--remote-debugging-port=9222',
+                    '--remote-debugging-pipe',
+                ],
+            ],
+            'user_agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+            'headers' => [
+                'accept-language' => 'zh-CN,zh;q=0.9,en;q=0.8',
+            ],
+        ],
 
-    'user_agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-
-    'possibles' => [
-        'title' => [
-            'meta[name=apple-mobile-web-app-title]' => 'content',
-            'meta[name=og:site_name]' => 'content',
-            'meta[name=application-name]' => 'content',
-        ],
-        'sub_title' => [
-            'meta[name=twitter:title]' => 'content',
-            'meta[property=og:title]' => 'content',
-            'meta[name=title]' => 'content',
-            'title' => 'text',
-        ],
-        'description' => [
-            'meta[name=twitter:description]' => 'content',
-            'meta[property=og:description]' => 'content',
-            'meta[name=description]' => 'content',
-            'meta[name=Description]' => 'content',
-        ],
-        'keywords' => [
-            'meta[name=keywords]' => 'content',
-            'meta[name=Keywords]' => 'content',
-        ],
-        'icon' => [
-            'link[rel="apple-touch-icon"]' => 'href',
-            'link[rel="icon"]' => 'href',
-            'link[rel="shortcut icon"]' => 'href',
-            'link[rel="Shortcut Icon"]' => 'href',
-            'link[rel="mask-icon"]' => 'href',
+        // https://github.com/spatie/browsershot
+        'browsershot' => [
+            // connect broser use executable_path or url
+            'node_binary' => null,
+            'npm_binary' => null,
+            'chrome_path' => null,
+            'chrome_args' => [],
+            'user_agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
         ],
     ],
 
@@ -41,6 +47,7 @@ return [
     'skips' => [
         'localhost',
         '127',
+        '172',
         '192',
     ],
 ];

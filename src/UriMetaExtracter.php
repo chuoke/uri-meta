@@ -2,9 +2,10 @@
 
 namespace Chuoke\UriMeta;
 
+use Chuoke\UriMeta\Drivers\Browsershot;
+use Chuoke\UriMeta\Drivers\ChromePhp;
 use DiDom\Document;
 use Exception;
-use HeadlessChromium\BrowserFactory;
 use League\Uri\Uri;
 
 class UriMetaExtracter
@@ -38,18 +39,43 @@ class UriMetaExtracter
         return $this;
     }
 
+    protected function setUri($uri)
+    {
+        if (!$uri instanceof Uri) {
+            $uri = Uri::createFromString($uri);
+        }
+
+        $this->uri = $uri;
+
+        return $this;
+    }
+
     /**
      * @param  string  $uri
      * @return \Chuoke\UriMeta\UriMeta
      * @throws Exception
      */
-    public function extract(string $uri)
+    public function extract(string $uri): UriMeta
     {
-        $this->uri = Uri::createFromString($uri);
+        $this->setUri($uri);
 
-        if (! $this->isHttp() || $this->isShouldSkip()) {
+        if (!$this->isHttp() || $this->isShouldSkip()) {
             return $this->useDefault();
         }
+
+        return $this->fromHtml($this->getHtml(), $this->uri);
+    }
+
+    /**
+     * @param  string $html
+     * @param  string $uri  It is needed to complete links, such as icon links.
+     * @return UriMeta
+     */
+    public function fromHtml(string $html, $uri): UriMeta
+    {
+        $this->setUri($uri);
+
+        $this->makeDocument($html);
 
         return $this->extractMeta();
     }
@@ -75,36 +101,48 @@ class UriMetaExtracter
     /**
      * @return \Chuoke\UriMeta\UriMeta
      */
-    public function useDefault()
+    public function useDefault(): UriMeta
     {
-        $uriMeta = new UriMeta($this->uri);
-
-        $uriMeta->titles = [$this->defaultTitle()];
-        $uriMeta->descriptions = [(string) $this->uri];
-        $uriMeta->keywords = '';
-        $uriMeta->icons = [];
+        $uriMeta = new UriMeta($this->uri, [
+            'title' => $this->defaultTitle(),
+            'description' => '',
+            'keywords' => [],
+            'icons' => [],
+        ]);
 
         return $uriMeta;
     }
 
-    /**
-     * @return \Chuoke\UriMeta\UriMeta
-     */
-    protected function extractMeta()
+    protected function extractMeta(): UriMeta
     {
-        $this->makeDocument();
+        $meta = [
+            'title' => $this->extractTitle(),
+            'description' => $this->extractDescription(),
+            'keywords' => $this->extractKeywords(),
+            'icons' => $this->extractIcons(),
+        ];
 
-        $uriMeta = new UriMeta($this->uri);
+        if ($meta['title'] && $this->isHostUri()) {
+            $slogan = $this->extractSlogan($meta['title']);
 
-        $uriMeta->titles = $this->extractTitle();
-        $uriMeta->descriptions = $this->extractDescription();
-        $uriMeta->keywords = $this->extractKeywords();
-        $uriMeta->icons = $this->extractIcons();
+            if ($slogan['slogan']) {
+                $meta['slogan'] = $slogan['slogan'];
+                $meta['title'] = $slogan['title'];
+            }
+        }
 
-        return $uriMeta;
+        if ($og = $this->extractOg()) {
+            $meta['og'] = $og;
+        }
+
+        if ($twitter = $this->extractTwitter()) {
+            $meta['twitter'] = $twitter;
+        }
+
+        return new UriMeta($this->uri, $meta);
     }
 
-    public function defaultTitle()
+    public function defaultTitle(): string
     {
         return implode(
             ':',
@@ -115,23 +153,16 @@ class UriMetaExtracter
         );
     }
 
-    /**
-     * 提取meta标签值
-     *
-     * @param  array  $possibles
-     * @param  bool  $takeAll
-     * @return array
-     */
-    protected function extractMetaValue(array $possibles, $takeAll = false)
+    protected function extractMetaValue(array $metaTags, bool $takeAll = false): string|array
     {
-        if (! ($headEle = $this->document->first('head'))) {
+        if (!($headEle = $this->document->first('head'))) {
             return [];
         }
 
         $values = [];
 
-        foreach ($possibles as $possible => $attr) {
-            if (! ($possibleEle = $headEle->first($possible))) {
+        foreach ($metaTags as $possible => $attr) {
+            if (!($possibleEle = $headEle->first($possible))) {
                 continue;
             }
 
@@ -145,46 +176,53 @@ class UriMetaExtracter
                 $values[] = $value;
             }
 
-            if (! empty($values) && ! $takeAll) {
+            if (!empty($values) && !$takeAll) {
                 break;
             }
         }
 
-        return array_unique($values);
+        $values = array_unique($values);
+
+        return $takeAll ? $values : reset($values);
     }
 
-    protected function extractTitle()
+    protected function extractTitle(): string
     {
-        $possibles = $this->config['possibles']['sub_title'];
+        return $this->extractMetaValue(['title' => 'text']);
+    }
 
-        if ($this->isHostUri()) {
-            $possibles = array_merge($this->config['possibles']['title'], $possibles);
+    protected function extractDescription(): string
+    {
+        return $this->extractMetaValue([
+            'meta[name=description]' => 'content',
+            'meta[name=Description]' => 'content',
+        ]);
+    }
+
+    protected function extractKeywords(): array
+    {
+        $keywords = (string) $this->extractMetaValue([
+            'meta[name=keywords]' => 'content',
+            'meta[name=Keywords]' => 'content',
+        ], false);
+
+        $keywords = explode(',', str_replace(['，', '、'], ',', $keywords));
+
+        return array_filter($keywords);
+    }
+
+    protected function extractIcons(): array
+    {
+        $icons = $this->extractMetaValue([
+            'link[rel="apple-touch-icon"]' => 'href',
+            'link[rel="shortcut icon"]' => 'href',
+            'link[rel="Shortcut Icon"]' => 'href',
+            'link[rel="icon"]' => 'href',
+        ], true);
+
+        if (empty($icons)) {
+            $icons[] = '/favicon.ico';
         }
-
-        return $this->extractMetaValue($possibles, true);
-    }
-
-    protected function extractDescription()
-    {
-        $possibles = $this->config['possibles']['description'];
-
-        return $this->extractMetaValue($possibles, true);
-    }
-
-    protected function extractKeywords()
-    {
-        $possibles = $this->config['possibles']['keywords'];
-
-        return $this->extractMetaValue($possibles, false)[0] ?? '';
-    }
-
-    protected function extractIcons()
-    {
-        $possibles = $this->config['possibles']['icon'];
-
-        $icons = $this->extractMetaValue($possibles, true);
-
-        $icons[] = '/favicon.ico';
 
         $results = [];
 
@@ -195,7 +233,7 @@ class UriMetaExtracter
         return array_unique($results);
     }
 
-    public function fulfillSubUrl($sub)
+    public function fulfillSubUrl($sub): string
     {
         if ($this->startsWith($sub, ['https://', 'http://'])) {
             return $sub;
@@ -212,9 +250,113 @@ class UriMetaExtracter
         ]));
     }
 
+    public function extractOg(): array
+    {
+        $elements = $this->document->find('head > meta[property ^="og:"]');
+
+        if (empty($elements)) {
+            return [];
+        }
+
+        $results = [];
+
+        foreach ($elements as $element) {
+            $property = trim((string) $element->getAttribute('property'), 'og:');
+            if (!$property) {
+                continue;
+            }
+
+            $value = trim((string) $element->getAttribute('content'));
+            if ($value) {
+                // Remove the previous 'og:', and replace ':' with '_'.
+                $results[str_replace(':', '_', substr($property, 3))] = $value;
+            }
+        }
+
+        return $results;
+    }
+
+    public function extractTwitter(): array
+    {
+        $elements = $this->document->find('head > meta[name ^="twitter:"]');
+
+        if (empty($elements)) {
+            return [];
+        }
+
+        $results = [];
+
+        foreach ($elements as $element) {
+            $property = trim((string) $element->getAttribute('name'), 'twitter:');
+            if (!$property) {
+                continue;
+            }
+
+            $value = trim((string) $element->getAttribute('content'));
+            if ($value) {
+                // Remove the previous 'twitter:', and replace ':' with '_'.
+                $results[str_replace(':', '_', substr($property, 8))] = $value;
+            }
+        }
+
+        return $results;
+    }
+
+    protected function extractSlogan($title = null)
+    {
+        $slogan = '';
+        $newTitle = '';
+
+        if (!$title || !$this->isHostUri()) {
+            return [
+                'slogan' => $slogan,
+                'title' => $newTitle,
+            ];
+        }
+
+        // 我的工作台 - Gitee.com
+        // 慕课网-程序员的梦工厂
+        // 友盟+，国内领先的第三方全域数据智能服务商
+        // Laravel - The PHP Framework For Web Artisans
+        // 36氪_让一部分人先看到未来
+        // 说唱帮 | 中文说唱文化爱好者交流平台
+        // Chocolatey Software | Chocolatey - The package manager for Windows
+        // 中国供应商 - 免费B2B信息发布网站，百度爱采购官方合作平台
+        // 文鼎字库_文鼎字体_字体授权_Yestone邑石网_文鼎字库云字库大陆独家代理商
+        foreach (['-', '_', '|', ':', '：', ',', '，',] as $separator) {
+            if (mb_stripos($title, $separator) <= 0) {
+                continue;
+            }
+
+            $strs = explode($separator, $title, 2);
+
+            foreach ($strs as $str) {
+                $str = trim($str);
+                if (
+                    mb_stripos($this->uri->getHost(), $str) !== false
+                    || mb_stripos($str, mb_substr($this->uri->getHost(), 0, mb_strripos($this->uri->getHost(), '.'))) !== false
+                ) {
+                    continue;
+                }
+
+                if (mb_strlen($str) > mb_strlen($slogan)) {
+                    $newTitle = $slogan;
+                    $slogan = $str;
+                }
+            }
+
+            break;
+        }
+
+        return [
+            'slogan' => $slogan,
+            'title' => $newTitle,
+        ];
+    }
+
     protected function isHostUri(): bool
     {
-        return ! $this->uri->getPath();
+        return !$this->uri->getPath() || $this->uri->getPath() === '/';
     }
 
     public function hostUri(): string
@@ -226,38 +368,51 @@ class UriMetaExtracter
         ]);
     }
 
-    protected function makeDocument()
+    protected function makeDocument(string $html)
     {
-        if (strpos($this->uri->getScheme(), 'http') !== 0) {
-            throw new Exception('Non-web link');
-        }
-
-        $html = $this->getHtmlbyChrome();
-
         return $this->document = new Document($html, false, 'UTF-8');
     }
 
-    public function getHtmlbyChrome()
+    public function getHtml(): string
     {
-        try {
-            $browserFactory = new BrowserFactory();
+        if (strpos($this->uri->getScheme(), 'http') !== 0) {
+            throw new Exception('Non-web url');
+        }
 
-            // starts headless chrome
-            $browser = $browserFactory->createBrowser();
+        if (!isset($this->config['drivers']) || empty($this->config['drivers'])) {
+            throw new Exception('There is no get html drivers.');
+        }
 
-            // creates a new page and navigate to an url
-            $page = $browser->createPage();
+        $html = '';
 
-            if ($userAgent = $this->userAgent()) {
-                $page->setUserAgent($userAgent);
+        foreach ($this->config['drivers'] as $driver => $config) {
+            if (is_callable($config)) {
+                $html = $config((string) $this->uri);
+            } else {
+                $method = 'getHtmlBy' . ucfirst($driver);
+                $html = $this->{$method}((string) $this->uri, $config);
             }
 
-            $page->navigate((string) $this->uri)->waitForNavigation();
-
-            return $page->getHtml();
-        } finally {
-            isset($browser) && $browser && $browser->close();
+            if ($html) {
+                break;
+            }
         }
+
+        if (!$html) {
+            throw new Exception('Can\'t get html content of the url.');
+        }
+
+        return $html;
+    }
+
+    public function getHtmlbyChromephp($uri, array $config = []): string
+    {
+        return (new ChromePhp($config))->getHtml($uri);
+    }
+
+    public function getHtmlbyBrowsershot($uri, array $config = []): string
+    {
+        return (new Browsershot($config))->getHtml($uri);
     }
 
     /**
@@ -276,10 +431,5 @@ class UriMetaExtracter
         }
 
         return false;
-    }
-
-    protected function userAgent()
-    {
-        return $this->config['user_agent'] ?? 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.114 Safari/537.36';
     }
 }
