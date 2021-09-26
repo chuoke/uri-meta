@@ -41,7 +41,7 @@ class UriMetaExtracter
 
     protected function setUri($uri)
     {
-        if (!$uri instanceof Uri) {
+        if (! $uri instanceof Uri) {
             $uri = Uri::createFromString($uri);
         }
 
@@ -59,7 +59,7 @@ class UriMetaExtracter
     {
         $this->setUri($uri);
 
-        if (!$this->isHttp() || $this->isShouldSkip()) {
+        if (! $this->isHttp() || $this->isShouldSkip()) {
             return $this->useDefault();
         }
 
@@ -155,14 +155,14 @@ class UriMetaExtracter
 
     protected function extractMetaValue(array $metaTags, bool $takeAll = false): string|array
     {
-        if (!($headEle = $this->document->first('head'))) {
+        if (! ($headEle = $this->document->first('head'))) {
             return [];
         }
 
         $values = [];
 
         foreach ($metaTags as $possible => $attr) {
-            if (!($possibleEle = $headEle->first($possible))) {
+            if (! ($possibleEle = $headEle->first($possible))) {
                 continue;
             }
 
@@ -176,7 +176,7 @@ class UriMetaExtracter
                 $values[] = $value;
             }
 
-            if (!empty($values) && !$takeAll) {
+            if (! empty($values) && ! $takeAll) {
                 break;
             }
         }
@@ -262,7 +262,7 @@ class UriMetaExtracter
 
         foreach ($elements as $element) {
             $property = trim((string) $element->getAttribute('property'), 'og:');
-            if (!$property) {
+            if (! $property) {
                 continue;
             }
 
@@ -288,7 +288,7 @@ class UriMetaExtracter
 
         foreach ($elements as $element) {
             $property = trim((string) $element->getAttribute('name'), 'twitter:');
-            if (!$property) {
+            if (! $property) {
                 continue;
             }
 
@@ -307,7 +307,7 @@ class UriMetaExtracter
         $slogan = '';
         $newTitle = '';
 
-        if (!$title || !$this->isHostUri()) {
+        if (! $title || ! $this->isHostUri()) {
             return [
                 'slogan' => $slogan,
                 'title' => $newTitle,
@@ -356,7 +356,7 @@ class UriMetaExtracter
 
     protected function isHostUri(): bool
     {
-        return !$this->uri->getPath() || $this->uri->getPath() === '/';
+        return ! $this->uri->getPath() || $this->uri->getPath() === '/';
     }
 
     public function hostUri(): string
@@ -379,7 +379,7 @@ class UriMetaExtracter
             throw new Exception('Non-web url');
         }
 
-        if (!isset($this->config['drivers']) || empty($this->config['drivers'])) {
+        if (! isset($this->config['drivers']) || empty($this->config['drivers'])) {
             throw new Exception('There is no get html drivers.');
         }
 
@@ -398,7 +398,7 @@ class UriMetaExtracter
             }
         }
 
-        if (!$html) {
+        if (! $html) {
             throw new Exception('Can\'t get html content of the url.');
         }
 

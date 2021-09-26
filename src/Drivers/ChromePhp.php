@@ -4,8 +4,8 @@ namespace Chuoke\UriMeta\Drivers;
 
 use HeadlessChromium\Browser;
 use HeadlessChromium\BrowserFactory;
-use HeadlessChromium\Communication\Message;
 use HeadlessChromium\Communication\Connection;
+use HeadlessChromium\Communication\Message;
 use HeadlessChromium\Page;
 use Illuminate\Http\Client\Factory;
 use Throwable;
@@ -63,7 +63,7 @@ class ChromePhp
 
     protected function getWsendpoint(): string|null
     {
-        if (isset($this->config['wsendpoint']) && !empty($this->config['wsendpoint'])) {
+        if (isset($this->config['wsendpoint']) && ! empty($this->config['wsendpoint'])) {
             return $this->config['wsendpoint'];
         }
 
@@ -86,10 +86,11 @@ class ChromePhp
     {
         $port = $this->config['debugging_port'] ?? null;
 
-        if (!$port) {
+        if (! $port) {
             foreach ($this->config['browser_options']['envVariables'] ?? [] as $op) {
                 if (stripos($op, '--remote-debugging-port') === 0) {
                     $port = str_replace('--remote-debugging-port=', '', strtolower($op));
+
                     break;
                 }
             }
@@ -103,11 +104,11 @@ class ChromePhp
         $options = $this->config['browser_options'] ?? [];
 
         $debuggingPortOption = '--remote-debugging-port=' . $this->debuggingPort();
-        if (!array_key_exists('envVariables', $options)) {
+        if (! array_key_exists('envVariables', $options)) {
             $options['envVariables'] = [];
         }
 
-        if (!in_array($debuggingPortOption, $options['envVariables'])) {
+        if (! in_array($debuggingPortOption, $options['envVariables'])) {
             array_push($options['envVariables'], $debuggingPortOption);
         }
 

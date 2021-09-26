@@ -13,7 +13,7 @@ class UriMeta
 
     public function __construct($uri, array $meta = [])
     {
-        if (!$uri instanceof Uri) {
+        if (! $uri instanceof Uri) {
             $uri = Uri::createFromString($uri);
         }
 
