@@ -341,7 +341,7 @@ class UriMetaExtracter
 
         foreach ($elements as $element) {
             // Remove the previous 'twitter:', and replace ':' with '_'.
-            if (!($property = substr(trim((string) $element->getAttribute($propertyKey)), 8))) {
+            if (! ($property = substr(trim((string) $element->getAttribute($propertyKey)), 8))) {
                 continue;
             }
 
