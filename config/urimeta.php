@@ -11,8 +11,13 @@ return [
             'debugging_port' => 9222,
             'browser_options' => [
                 'keepAlive' => true,
-                'envVariables' => [
-                    '--no-sandbox',
+                'userAgent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+                'noSandbox' => true,
+                // 'sendSyncDefaultTimeout' => 10000,
+                // 'debugLogger' => true,
+                // 'connectionDelay' => 5,
+                'customFlags' => [
+                    // '--no-sandbox',
                     '--enable-logging',
                     '--v1=1',
                     '--disable-gpu',
@@ -24,7 +29,6 @@ return [
                     '--remote-debugging-pipe',
                 ],
             ],
-            'user_agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
             'headers' => [
                 'accept-language' => 'zh-CN,zh;q=0.9,en;q=0.8',
             ],

@@ -89,4 +89,14 @@ class UriMeta
             'title' => $this->title(),
         ]);
     }
+
+    public function __get($name)
+    {
+        return $this->getMeta($name);
+    }
+
+    public function __call($name, $arguments)
+    {
+        return $this->getMeta($name);
+    }
 }

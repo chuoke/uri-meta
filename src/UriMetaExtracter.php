@@ -2,11 +2,13 @@
 
 namespace Chuoke\UriMeta;
 
-use Chuoke\UriMeta\Drivers\Browsershot;
-use Chuoke\UriMeta\Drivers\ChromePhp;
-use DiDom\Document;
 use Exception;
+use Throwable;
+use DiDom\Document;
 use League\Uri\Uri;
+use Illuminate\Http\Client\Factory;
+use Chuoke\UriMeta\Drivers\ChromePhp;
+use Chuoke\UriMeta\Drivers\Browsershot;
 
 class UriMetaExtracter
 {
@@ -119,24 +121,45 @@ class UriMetaExtracter
             'title' => $this->extractTitle(),
             'description' => $this->extractDescription(),
             'keywords' => $this->extractKeywords(),
-            'icons' => $this->extractIcons(),
         ];
 
-        if ($meta['title'] && $this->isHostUri()) {
-            $slogan = $this->extractSlogan($meta['title']);
+        $siteName = '';
+        $themeColor = '';
+        $icons = [];
+
+        if ($this->isHostUri()) {
+            if ($manifest = $this->extractManifest()) {
+                $meta['manifest'] = $manifest;
+                $themeColor = $manifest['theme_color'] ?? '';
+                $icons = $manifest['icons'] ?? [];
+            }
+
+            $slogan = $this->extractSlogan($meta['title'], $this->uri->getHost(), $manifest['name'] ?? null);
 
             if ($slogan['slogan']) {
                 $meta['slogan'] = $slogan['slogan'];
-                $meta['title'] = $slogan['title'];
             }
+
+            $siteName = $manifest['name'] ?? $slogan['site_name'];
         }
+
+        $meta['icons'] = $icons ?: $this->extractIcons();
 
         if ($og = $this->extractOg()) {
             $meta['og'] = $og;
+            $siteName = $og['site_name'] ?? $siteName;
         }
 
         if ($twitter = $this->extractTwitter()) {
             $meta['twitter'] = $twitter;
+        }
+
+        if ($siteName) {
+            $meta['site_name'] = $siteName;
+        }
+
+        if ($themeColor || ($themeColor = $this->extractThemeColor())) {
+            $meta['theme_color'] = $themeColor;
         }
 
         return new UriMeta($this->uri, $meta);
@@ -153,7 +176,7 @@ class UriMetaExtracter
         );
     }
 
-    protected function extractMetaValue(array $metaTags, bool $takeAll = false): string|array
+    protected function extractMetaValue(array $metaTags, bool $takeAll = false, bool $associated = false): string|array
     {
         if (!($headEle = $this->document->first('head'))) {
             return [];
@@ -166,22 +189,24 @@ class UriMetaExtracter
                 continue;
             }
 
-            $value = trim(
-                strcasecmp($attr, 'text') === 0
-                    ? $possibleEle->text()
-                    : $possibleEle->getAttribute($attr)
-            );
+            if ($associated || is_array($attr)) {
+                $values[] = $possibleEle->attributes(is_array($attr) ? $attr : [$attr]) ?: [];
+            } else {
+                $value = trim(
+                    strcasecmp($attr, 'text') === 0
+                        ? $possibleEle->text()
+                        : $possibleEle->getAttribute($attr)
+                );
 
-            if ($value) {
-                $values[] = $value;
+                if ($value && !in_array($value, $values)) {
+                    $values[] = $value;
+                }
             }
 
             if (!empty($values) && !$takeAll) {
                 break;
             }
         }
-
-        $values = array_unique($values);
 
         return $takeAll ? $values : reset($values);
     }
@@ -213,41 +238,62 @@ class UriMetaExtracter
 
     protected function extractIcons(): array
     {
+        /**
+            // Target ios browsers.
+            <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+            // Target safari on MacOS.
+            <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+            // The classic favicon displayed in tabs.
+            <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+            // Used by Android Chrome for the "Add to home screen" icon and settings.
+            <link rel="manifest" href="/site.webmanifest">
+            // Used for Safari pinned tabs.
+            <link rel="mask-icon" href="/safari-pinned-tab.svg" color="#193860">
+            // Target older browsers like IE 10 and lower.
+            <link rel="icon" href="/favicon.ico">
+            // Used by Chrome, Firefox OS, and opera to change the browser address bar.
+            <meta name="theme-color" content="#ccccc7">
+            // Used by windows 8, 8.1, and 10 for the start menu tiles.
+            <meta name="msapplication-TileColor" content="#00aba9">
+         */
+
         $icons = $this->extractMetaValue([
-            'link[rel="apple-touch-icon"]' => 'href',
-            'link[rel="shortcut icon"]' => 'href',
-            'link[rel="Shortcut Icon"]' => 'href',
-            'link[rel="icon"]' => 'href',
+            'link[rel="apple-touch-icon"]' => ['rel', 'type', 'sizes', 'href'],
+            'link[rel="shortcut icon"]' => ['rel', 'type', 'sizes', 'href'],
+            'link[rel="Shortcut Icon"]' => ['rel', 'type', 'sizes', 'href'],
+            'link[rel="icon"]' => ['rel', 'type', 'sizes', 'href'],
         ], true);
 
         if (empty($icons)) {
-            $icons[] = '/favicon.ico';
+            $icons[] = [
+                'href' => '/favicon.ico',
+            ];
         }
 
         $results = [];
-
-        foreach (array_unique($icons) as $icon) {
-            $results[] = $this->fulfillSubUrl($icon);
+        $exists = [];
+        foreach ($icons as $icon) {
+            $icon['src'] = $this->fulfillSubUrl($icon['href'], $this->uri);
+            if (!in_array($icon['src'], $exists)) {
+                $results[] = $icon;
+                $exists[] = $icon['src'];
+            }
         }
 
-        return array_unique($results);
+        return $results;
     }
 
-    public function fulfillSubUrl($sub): string
+    public function fulfillSubUrl(string $sub, Uri $baseUri): string
     {
         if ($this->startsWith($sub, ['https://', 'http://'])) {
             return $sub;
         } elseif ($this->startsWith($sub, '//')) {
-            return implode(':', [$this->uri->getScheme() ?: 'http', $sub]);
+            return ($baseUri->getScheme() ?: 'http') . ':' . $sub;
         } elseif ($this->startsWith($sub, '/')) {
-            return $this->hostUri() . $sub;
+            return ((string) $baseUri->withPath('')) . $sub;
         }
 
-        return implode('/', array_filter([
-            $this->hostUri(),
-            trim($this->uri->getPath(), '/'),
-            $sub,
-        ]));
+        return rtrim(((string) $baseUri->withQuery('')), '/') . '/' . $sub;
     }
 
     public function extractOg(): array
@@ -261,15 +307,16 @@ class UriMetaExtracter
         $results = [];
 
         foreach ($elements as $element) {
-            $property = trim((string) $element->getAttribute('property'), 'og:');
-            if (!$property) {
+            // Remove the previous 'og:', and replace ':' with '_'.
+            if (!($property = substr(trim((string) $element->getAttribute('property')), 3))) {
                 continue;
             }
 
-            $value = trim((string) $element->getAttribute('content'));
-            if ($value) {
-                // Remove the previous 'og:', and replace ':' with '_'.
-                $results[str_replace(':', '_', substr($property, 3))] = $value;
+            $property = str_replace(':', '_', $property);
+
+            if ($value = trim((string) $element->getAttribute('content'))) {
+                $results[$property] =
+                    in_array($property, ['image', 'image_src']) ? $this->fulfillSubUrl($value, $this->uri) : $value;
             }
         }
 
@@ -278,39 +325,46 @@ class UriMetaExtracter
 
     public function extractTwitter(): array
     {
-        $elements = $this->document->find('head > meta[name ^="twitter:"]');
+        $propertyKey = 'name';
+        foreach (['name', 'property'] as $p) {
+            $propertyKey = $p;
+            if ($elements = $this->document->find('head > meta[' . $p . ' ^="twitter:"]')) {
+                break;
+            }
+        }
 
-        if (empty($elements)) {
+        if (!$elements) {
             return [];
         }
 
         $results = [];
 
         foreach ($elements as $element) {
-            $property = trim((string) $element->getAttribute('name'), 'twitter:');
-            if (!$property) {
+            // Remove the previous 'twitter:', and replace ':' with '_'.
+            if (!($property = substr(trim((string) $element->getAttribute($propertyKey)), 8))) {
                 continue;
             }
 
-            $value = trim((string) $element->getAttribute('content'));
-            if ($value) {
-                // Remove the previous 'twitter:', and replace ':' with '_'.
-                $results[str_replace(':', '_', substr($property, 8))] = $value;
+            $property = str_replace(':', '_', $property);
+
+            if ($value = trim((string) $element->getAttribute('content'))) {
+                $results[$property] =
+                    in_array($property, ['image', 'image_src']) ? $this->fulfillSubUrl($value, $this->uri) : $value;
             }
         }
 
         return $results;
     }
 
-    protected function extractSlogan($title = null)
+    protected function extractSlogan(string $title, string $hostName, $name = null)
     {
         $slogan = '';
-        $newTitle = '';
+        $siteName = '';
 
         if (!$title || !$this->isHostUri()) {
             return [
                 'slogan' => $slogan,
-                'title' => $newTitle,
+                'site_name' => $siteName,
             ];
         }
 
@@ -330,18 +384,24 @@ class UriMetaExtracter
 
             $strs = explode($separator, $title, 2);
 
+            $nameWordCount = $this->wordCount((string) $name);
+
             foreach ($strs as $str) {
                 $str = trim($str);
                 if (
-                    mb_stripos($this->uri->getHost(), $str) !== false
-                    || mb_stripos($str, mb_substr($this->uri->getHost(), 0, mb_strripos($this->uri->getHost(), '.'))) !== false
+                    mb_stripos($hostName, $str) !== false
+                    || mb_stripos($str, mb_substr($hostName, 0, mb_strripos($hostName, '.'))) !== false
                 ) {
+                    $siteName = $str;
                     continue;
                 }
 
-                if (mb_strlen($str) > mb_strlen($slogan)) {
-                    $newTitle = $slogan;
+                $wordCount = $this->wordCount($str) - $nameWordCount;
+
+                if ($wordCount > 3 && mb_strlen($str) > mb_strlen($slogan)) {
                     $slogan = $str;
+                } else {
+                    $siteName = $slogan ?: $siteName;
                 }
             }
 
@@ -350,8 +410,48 @@ class UriMetaExtracter
 
         return [
             'slogan' => $slogan,
-            'title' => $newTitle,
+            'site_name' => $siteName,
         ];
+    }
+
+    protected function wordCount($str)
+    {
+        return str_word_count($str) === 0 ? mb_strlen($str) : str_word_count($str);
+    }
+
+    protected function extractManifest()
+    {
+        // <link rel="manifest" href="/manifest.json" crossOrigin="use-credentials">
+        $manifestUrl = $this->extractMetaValue([
+            'link[rel="manifest"]' => 'href',
+        ]);
+
+        if (!$manifestUrl) {
+            return;
+        }
+
+        $manifestUrl = $this->fulfillSubUrl(urldecode($manifestUrl), $this->uri);
+
+        try {
+            $response = (new Factory())->get($manifestUrl);
+
+            if ($response->ok()) {
+                return $response->json();
+            }
+        } catch (Throwable $e) {
+            //
+        }
+
+        return;
+    }
+
+    protected function extractThemeColor()
+    {
+        // <meta name="theme-color" content="#032541">
+        return $this->extractMetaValue([
+            'meta[name="theme-color"]' => 'content',
+            'meta[name="msapplication-TileColor"]' => 'content',
+        ]);
     }
 
     protected function isHostUri(): bool

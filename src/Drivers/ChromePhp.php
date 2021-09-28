@@ -35,7 +35,9 @@ class ChromePhp
 
             $page->navigate((string) $url)->waitForNavigation();
 
-            return $page->getHtml();
+            $html = $page->getHtml();
+
+            return $html;
         } finally {
             if ($page) {
                 $page->close();
@@ -87,7 +89,7 @@ class ChromePhp
         $port = $this->config['debugging_port'] ?? null;
 
         if (!$port) {
-            foreach ($this->config['browser_options']['envVariables'] ?? [] as $op) {
+            foreach ($this->config['browser_options']['customFlags'] ?? [] as $op) {
                 if (stripos($op, '--remote-debugging-port') === 0) {
                     $port = str_replace('--remote-debugging-port=', '', strtolower($op));
                     break;
@@ -103,12 +105,12 @@ class ChromePhp
         $options = $this->config['browser_options'] ?? [];
 
         $debuggingPortOption = '--remote-debugging-port=' . $this->debuggingPort();
-        if (!array_key_exists('envVariables', $options)) {
-            $options['envVariables'] = [];
+        if (!array_key_exists('customFlags', $options)) {
+            $options['customFlags'] = [];
         }
 
-        if (!in_array($debuggingPortOption, $options['envVariables'])) {
-            array_push($options['envVariables'], $debuggingPortOption);
+        if (!in_array($debuggingPortOption, $options['customFlags'])) {
+            array_push($options['customFlags'], $debuggingPortOption);
         }
 
         return $options;
