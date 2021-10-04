@@ -108,11 +108,11 @@ class ChromePhp
         $options = $this->config['browser_options'] ?? [];
 
         $debuggingPortOption = '--remote-debugging-port=' . $this->debuggingPort();
-        if (!array_key_exists('customFlags', $options)) {
+        if (! array_key_exists('customFlags', $options)) {
             $options['customFlags'] = [];
         }
 
-        if (!in_array($debuggingPortOption, $options['customFlags'])) {
+        if (! in_array($debuggingPortOption, $options['customFlags'])) {
             array_push($options['customFlags'], $debuggingPortOption);
         }
 
