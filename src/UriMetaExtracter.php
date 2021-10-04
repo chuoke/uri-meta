@@ -287,9 +287,13 @@ class UriMetaExtracter
     {
         if ($this->startsWith($sub, ['https://', 'http://'])) {
             return $sub;
-        } elseif ($this->startsWith($sub, '//')) {
+        }
+
+        if ($this->startsWith($sub, '//')) {
             return ($baseUri->getScheme() ?: 'http') . ':' . $sub;
-        } elseif ($this->startsWith($sub, '/')) {
+        }
+
+        if ($this->startsWith($sub, '/')) {
             return ((string) $baseUri->withPath('')) . $sub;
         }
 
@@ -341,7 +345,7 @@ class UriMetaExtracter
 
         foreach ($elements as $element) {
             // Remove the previous 'twitter:', and replace ':' with '_'.
-            if (! ($property = substr(trim((string) $element->getAttribute($propertyKey)), 8))) {
+            if (!($property = substr(trim((string) $element->getAttribute($propertyKey)), 8))) {
                 continue;
             }
 
@@ -356,7 +360,7 @@ class UriMetaExtracter
         return $results;
     }
 
-    protected function extractSlogan(string $title, string $hostName, $name = null)
+    protected function extractSlogan(string $title)
     {
         $slogan = '';
         $siteName = '';
@@ -368,6 +372,7 @@ class UriMetaExtracter
             ];
         }
 
+        // GitHub: Where the world builds software · GitHub
         // 我的工作台 - Gitee.com
         // 慕课网-程序员的梦工厂
         // 友盟+，国内领先的第三方全域数据智能服务商
@@ -377,32 +382,19 @@ class UriMetaExtracter
         // Chocolatey Software | Chocolatey - The package manager for Windows
         // 中国供应商 - 免费B2B信息发布网站，百度爱采购官方合作平台
         // 文鼎字库_文鼎字体_字体授权_Yestone邑石网_文鼎字库云字库大陆独家代理商
-        foreach (['-', '_', '|', ':', '：', ',', '，',] as $separator) {
+        foreach (['·', '-', '_', '|', ':', '：', ',', '，',] as $separator) {
             if (mb_stripos($title, $separator) <= 0) {
                 continue;
             }
 
-            $strs = explode($separator, $title, 2);
+            [$str1, $str2] = array_map(fn ($str) => trim($str), explode($separator, $title, 2));
 
-            $nameWordCount = $this->wordCount((string) $name);
-
-            foreach ($strs as $str) {
-                $str = trim($str);
-                if (
-                    mb_stripos($hostName, $str) !== false
-                    || mb_stripos($str, mb_substr($hostName, 0, mb_strripos($hostName, '.'))) !== false
-                ) {
-                    $siteName = $str;
-                    continue;
-                }
-
-                $wordCount = $this->wordCount($str) - $nameWordCount;
-
-                if ($wordCount > 3 && mb_strlen($str) > mb_strlen($slogan)) {
-                    $slogan = $str;
-                } else {
-                    $siteName = $slogan ?: $siteName;
-                }
+            if (mb_strlen($str1) > mb_strlen($str2)) {
+                $siteName = $str2;
+                $slogan = $str1;
+            } else {
+                $siteName = $str1;
+                $slogan = $str2;
             }
 
             break;
