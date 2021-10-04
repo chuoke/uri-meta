@@ -2,13 +2,13 @@
 
 namespace Chuoke\UriMeta;
 
-use Exception;
-use Throwable;
-use DiDom\Document;
-use League\Uri\Uri;
-use Illuminate\Http\Client\Factory;
-use Chuoke\UriMeta\Drivers\ChromePhp;
 use Chuoke\UriMeta\Drivers\Browsershot;
+use Chuoke\UriMeta\Drivers\ChromePhp;
+use DiDom\Document;
+use Exception;
+use Illuminate\Http\Client\Factory;
+use League\Uri\Uri;
+use Throwable;
 
 class UriMetaExtracter
 {
@@ -43,7 +43,7 @@ class UriMetaExtracter
 
     protected function setUri($uri)
     {
-        if (!$uri instanceof Uri) {
+        if (! $uri instanceof Uri) {
             $uri = Uri::createFromString($uri);
         }
 
@@ -61,7 +61,7 @@ class UriMetaExtracter
     {
         $this->setUri($uri);
 
-        if (!$this->isHttp() || $this->isShouldSkip()) {
+        if (! $this->isHttp() || $this->isShouldSkip()) {
             return $this->useDefault();
         }
 
@@ -178,14 +178,14 @@ class UriMetaExtracter
 
     protected function extractMetaValue(array $metaTags, bool $takeAll = false, bool $associated = false): string|array
     {
-        if (!($headEle = $this->document->first('head'))) {
+        if (! ($headEle = $this->document->first('head'))) {
             return [];
         }
 
         $values = [];
 
         foreach ($metaTags as $possible => $attr) {
-            if (!($possibleEle = $headEle->first($possible))) {
+            if (! ($possibleEle = $headEle->first($possible))) {
                 continue;
             }
 
@@ -198,12 +198,12 @@ class UriMetaExtracter
                         : $possibleEle->getAttribute($attr)
                 );
 
-                if ($value && !in_array($value, $values)) {
+                if ($value && ! in_array($value, $values)) {
                     $values[] = $value;
                 }
             }
 
-            if (!empty($values) && !$takeAll) {
+            if (! empty($values) && ! $takeAll) {
                 break;
             }
         }
@@ -274,7 +274,7 @@ class UriMetaExtracter
         $exists = [];
         foreach ($icons as $icon) {
             $icon['src'] = $this->fulfillSubUrl($icon['href'], $this->uri);
-            if (!in_array($icon['src'], $exists)) {
+            if (! in_array($icon['src'], $exists)) {
                 $results[] = $icon;
                 $exists[] = $icon['src'];
             }
@@ -312,7 +312,7 @@ class UriMetaExtracter
 
         foreach ($elements as $element) {
             // Remove the previous 'og:', and replace ':' with '_'.
-            if (!($property = substr(trim((string) $element->getAttribute('property')), 3))) {
+            if (! ($property = substr(trim((string) $element->getAttribute('property')), 3))) {
                 continue;
             }
 
@@ -337,7 +337,7 @@ class UriMetaExtracter
             }
         }
 
-        if (!$elements) {
+        if (! $elements) {
             return [];
         }
 
@@ -365,7 +365,7 @@ class UriMetaExtracter
         $slogan = '';
         $siteName = '';
 
-        if (!$title || !$this->isHostUri()) {
+        if (! $title || ! $this->isHostUri()) {
             return [
                 'slogan' => $slogan,
                 'site_name' => $siteName,
@@ -418,7 +418,7 @@ class UriMetaExtracter
             'link[rel="manifest"]' => 'href',
         ]);
 
-        if (!$manifestUrl) {
+        if (! $manifestUrl) {
             return;
         }
 
@@ -448,7 +448,7 @@ class UriMetaExtracter
 
     protected function isHostUri(): bool
     {
-        return !$this->uri->getPath() || $this->uri->getPath() === '/';
+        return ! $this->uri->getPath() || $this->uri->getPath() === '/';
     }
 
     public function hostUri(): string
@@ -471,7 +471,7 @@ class UriMetaExtracter
             throw new Exception('Non-web url');
         }
 
-        if (!isset($this->config['drivers']) || empty($this->config['drivers'])) {
+        if (! isset($this->config['drivers']) || empty($this->config['drivers'])) {
             throw new Exception('There is no get html drivers.');
         }
 
@@ -490,7 +490,7 @@ class UriMetaExtracter
             }
         }
 
-        if (!$html) {
+        if (! $html) {
             throw new Exception('Can\'t get html content of the url.');
         }
 

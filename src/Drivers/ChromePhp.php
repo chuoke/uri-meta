@@ -67,7 +67,7 @@ class ChromePhp
 
     protected function getWsendpoint(): string|null
     {
-        if (isset($this->config['wsendpoint']) && !empty($this->config['wsendpoint'])) {
+        if (isset($this->config['wsendpoint']) && ! empty($this->config['wsendpoint'])) {
             return $this->config['wsendpoint'];
         }
 
@@ -90,7 +90,7 @@ class ChromePhp
     {
         $port = $this->config['debugging_port'] ?? null;
 
-        if (!$port) {
+        if (! $port) {
             foreach ($this->config['browser_options']['envVariables'] ?? [] as $op) {
                 if (stripos($op, '--remote-debugging-port') === 0) {
                     $port = str_replace('--remote-debugging-port=', '', strtolower($op));
